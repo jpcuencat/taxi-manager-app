@@ -63,8 +63,6 @@ api.interceptors.response.use(
       } catch (refreshError) {
         // Falló el refresh token o no es válido, eliminar tokens y redirigir al login
         await AsyncStorage.clear();
-        console.error('Error al refrescar token, redirigiendo a login:', refreshError.response?.data || refreshError.message);
-        // NOTA: Aquí también se necesitaría un mecanismo para redirigir al login
         return Promise.reject(refreshError);
       }
     }

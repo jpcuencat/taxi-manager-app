@@ -11,10 +11,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system'; // ¡NUEVA IMPORTACIÓN NECESARIA!
 
-// NOTA: La función uriToBlob ya NO ES NECESARIA para este enfoque Base64.
-// Puedes eliminarla o comentarla si no se usa en otro lugar.
-// const uriToBlob = (uri: string): Promise<Blob> => { ... };
-
 type CreateGastoScreenNavigationProp = StackNavigationProp<RootStackParamList, 'CreateGasto'>;
 
 interface CreateGastoScreenProps {
@@ -32,6 +28,16 @@ interface ConceptoGasto {
     nombre: string;
 }
 
+// Interfaz corregida para el estado facturaData
+interface FacturaDataType {
+    base64: string;
+    name: string; // <-- **CORREGIDO:** Asegúrate de que sea 'name'
+    type: string;
+}
+
+// ==========================================================
+// UTILIDADES
+// ==========================================================
 const sanitizeText = (text: string | null | undefined): string => {
     if (!text) return '';
     text = text.trim();
@@ -40,8 +46,13 @@ const sanitizeText = (text: string | null | undefined): string => {
     return text;
 };
 
-
+// ==========================================================
+// COMPONENTE PRINCIPAL
+// ==========================================================
 const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => {
+    // ==========================================================
+    // ESTADOS
+    // ==========================================================
     const [taxiId, setTaxiId] = useState<number | null>(null);
     const [conceptoId, setConceptoId] = useState<number | null>(null);
     const [fecha, setFecha] = useState<Date>(new Date());
@@ -53,11 +64,15 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
     const [loadingData, setLoadingData] = useState<boolean>(true);
     const [loadingSubmit, setLoadingSubmit] = useState<boolean>(false);
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-    const [facturaData, setFacturaData] = useState<{ uri: string; base64: string; name: string; type: string; } | null>(null); // ¡NUEVO ESTADO PARA DATOS DE FACTURA!
 
+    // Estado para la factura con el tipo corregido
+    const [facturaData, setFacturaData] = useState<FacturaDataType | null>(null);
 
-    // Petición de permisos para la galería (solo en iOS/Android)
+    // ==========================================================
+    // EFECTOS (Hooks)
+    // ==========================================================
     useEffect(() => {
+        // Solicitar permisos de la galería al montar el componente
         (async () => {
             if (Platform.OS !== 'web') {
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -68,45 +83,8 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
         })();
     }, []);
 
-    const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true, // Esto te da el URI del archivo recortado/editado
-            aspect: [4, 3],
-            quality: 1,
-            base64: true, // ¡IMPORTANTE! Solicitar el base64 directamente
-        });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            const asset = result.assets[0];
-            const filename = asset.uri.split('/').pop() || `factura_${Date.now()}.jpg`;
-            const fileExtension = filename.split('.').pop()?.toLowerCase() || 'jpg';
-
-            const mimeTypes: { [key: string]: string } = {
-                'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
-                'gif': 'image/gif', 'bmp': 'image/bmp', 'tiff': 'image/tiff',
-                'heic': 'image/heic', 'heif': 'image/heif', 'pdf': 'application/pdf',
-            };
-            const mimeType = mimeTypes[fileExtension] || asset.type || 'application/octet-stream';
-
-            if (asset.base64) {
-                setFacturaData({
-                    uri: asset.uri,
-                    base64: asset.base64,
-                    name: filename,
-                    type: mimeType,
-                });
-                console.log("Factura seleccionada y convertida a Base64.");
-            } else {
-                Alert.alert('Error', 'No se pudo obtener la imagen en formato Base64.');
-                setFacturaData(null);
-            }
-        } else {
-            setFacturaData(null); // Limpiar si la selección fue cancelada
-        }
-    };
-
     useEffect(() => {
+        // Cargar datos iniciales (taxis, conceptos)
         const fetchData = async () => {
             try {
                 const [taxisResponse, conceptosResponse] = await Promise.all([
@@ -116,12 +94,12 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
 
                 setTaxis(taxisResponse.data);
                 if (taxisResponse.data.length > 0) {
-                    setTaxiId(taxisResponse.data[0].id_taxi);
+                    setTaxiId(taxisResponse.data[0].id_taxi); // Seleccionar el primer taxi por defecto
                 }
 
                 setConceptos(conceptosResponse.data);
                 if (conceptosResponse.data.length > 0) {
-                    setConceptoId(conceptosResponse.data[0].id_concepto_gasto);
+                    setConceptoId(conceptosResponse.data[0].id_concepto_gasto); // Seleccionar el primer concepto por defecto
                 }
 
             } catch (error: any) {
@@ -134,6 +112,55 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
         fetchData();
     }, []);
 
+    // ==========================================================
+    // MANEJADORES DE EVENTOS / FUNCIONES
+    // ==========================================================
+    const pickImage = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images, // Solo imágenes
+            allowsEditing: true, // Permite recortar/editar la imagen
+            aspect: [4, 3], // Relación de aspecto del recorte
+            quality: 0.7,   // **NUEVO ENFOQUE:** Comprime la calidad de la imagen (0 a 1)
+            base64: true,   // Solicita la imagen en formato Base64
+            // maxWidth: 1024, // **Opcional:** Redimensiona a un ancho máximo para reducir el tamaño aún más
+            // maxHeight: 768, // **Opcional:** Redimensiona a un alto máximo
+            allowsMultipleSelection: false, // Asegura que solo se seleccione una imagen
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            // Genera un nombre de archivo, si no hay uno, usa uno basado en la fecha
+            const filename = asset.uri.split('/').pop() || `factura_${Date.now()}.jpg`;
+            const fileExtension = filename.split('.').pop()?.toLowerCase() || 'jpg';
+
+            // Mapea la extensión a un tipo MIME adecuado
+            const mimeTypes: { [key: string]: string } = {
+                'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+                'gif': 'image/gif', 'bmp': 'image/bmp', 'tiff': 'image/tiff',
+                'heic': 'image/heic', 'heif': 'image/heif',
+                // Si quieres soportar PDFs, tendrías que cambiar MediaTypeOptions.All y manejar el base64 de PDFs de forma diferente
+                // porque ImagePicker no comprime/redimensiona PDFs.
+                // 'pdf': 'application/pdf',
+            };
+            const mimeType = mimeTypes[fileExtension] || asset.type || 'application/octet-stream';
+
+            if (asset.base64) {
+                setFacturaData({
+                    base64: asset.base64,
+                    name: filename, // <-- Propiedad 'name' para coincidir con la interfaz
+                    type: mimeType,
+                });
+                console.log("Factura seleccionada y convertida a Base64.");
+                console.log("DEBUG APP: Longitud de la cadena Base64 FINAL (después de compresión):", asset.base64.length);
+            } else {
+                Alert.alert('Error', 'No se pudo obtener la imagen en formato Base64. Asegúrate de que es una imagen válida.');
+                setFacturaData(null);
+            }
+        } else {
+            setFacturaData(null); // Limpiar si la selección fue cancelada
+        }
+    };
+
     const onChangeDate = (event: any, selectedDate?: Date) => {
         const currentDate = selectedDate || fecha;
         setShowDatePicker(false);
@@ -141,6 +168,7 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
     };
 
     const handleCreateGasto = async () => {
+        // Validaciones del formulario
         if (!taxiId || !conceptoId || !monto || !fecha) {
             Alert.alert('Error', 'Todos los campos son obligatorios (excepto descripción y factura).');
             return;
@@ -163,39 +191,45 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
 
             const formattedDate = fecha.toISOString().split('T')[0];
 
-            // =================================================================
-            // ***** CAMBIO CLAVE: ENVÍO DE DATOS COMO JSON NORMAL *****
-            // La factura se envía como Base64 dentro del JSON.
-            const gastoPayload: any = {
+            // Construcción del payload para enviar al backend
+            let gastoPayload: any = {
                 id_taxi: taxiId,
                 concepto: conceptoId,
                 monto: parsedMonto,
                 fecha_gasto: formattedDate,
                 descripcion: descripcion,
-                id_encargado_registro: parseInt(userId), // Asegúrate de que sea un número
+                id_encargado_registro: parseInt(userId),
+                // Inicializa los campos de factura como null por defecto
+                url_factura_adjunta: null,
+                url_factura_adjunta_name: null,
             };
 
+            // Si hay datos de factura, adjúntalos al payload
             if (facturaData) {
-                gastoPayload.url_factura_adjunta_base64 = `data:${facturaData.type};base64,${facturaData.base64}`; // Prefijo para MIME type
+                gastoPayload.url_factura_adjunta = `data:${facturaData.type};base64,${facturaData.base64}`;
                 gastoPayload.url_factura_adjunta_name = facturaData.name;
             }
+            
+            // Log de depuración del payload final (truncando base64 para evitar desbordamiento de consola)
+            console.log("DEBUG APP: Payload final a enviar:", JSON.stringify(gastoPayload, (key, value) => {
+                if (key === 'url_factura_adjunta' && typeof value === 'string' && value.length > 100) {
+                    return value.substring(0, 100) + '...[TRUNCATED_BASE64]';
+                }
+                return value;
+            }, 2));
 
-            console.log("Payload JSON a enviar para crear gasto:", gastoPayload);
-            // =================================================================
-
-            // Ahora usamos api.post con el payload JSON directamente.
-            // Axios automáticamente establecerá Content-Type: application/json
+            // Envío de la solicitud al API
             await api.post('gastos/', gastoPayload);
 
             Alert.alert('Éxito', 'Gasto registrado exitosamente.');
-            // Resetear los campos
+            // Restablecer los campos del formulario después de un registro exitoso
             setMonto('');
             setDescripcion('');
-            setFacturaData(null); // Limpiar facturaData
+            setFacturaData(null); // Limpiar datos de factura
             setTaxiId(taxis.length > 0 ? taxis[0].id_taxi : null);
             setConceptoId(conceptos.length > 0 ? conceptos[0].id_concepto_gasto : null);
-            setFecha(new Date());
-            navigation.goBack();
+            setFecha(new Date()); // Restablecer la fecha a la actual
+            navigation.goBack(); // Volver a la pantalla anterior
         } catch (error: any) {
             console.error('Error al registrar gasto:', error.response?.data || error.message);
             Alert.alert('Error', 'No se pudo registrar el gasto. ' + (error.response?.data?.detail || JSON.stringify(error.response?.data) || 'Inténtalo de nuevo.'));
@@ -208,10 +242,13 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
         }
     };
 
+    // ==========================================================
+    // RENDERIZADO DEL COMPONENTE
+    // ==========================================================
     if (loadingData) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#0000ff" />
+                <ActivityIndicator size="large" color="#dc3545" />
                 <Text>Cargando datos para el formulario...</Text>
             </View>
         );
@@ -221,7 +258,7 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
         return (
             <View style={styles.centered}>
                 <Text style={styles.errorText}>No tienes taxis asignados para registrar gastos.</Text>
-                <Button title="Volver" onPress={() => navigation.goBack()} />
+                <Button title="Volver" onPress={() => navigation.goBack()} color="#dc3545" />
             </View>
         );
     }
@@ -230,7 +267,7 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
         return (
             <View style={styles.centered}>
                 <Text style={styles.errorText}>No hay conceptos de gasto definidos. Pide a un administrador que los cree.</Text>
-                <Button title="Volver" onPress={() => navigation.goBack()} />
+                <Button title="Volver" onPress={() => navigation.goBack()} color="#dc3545" />
             </View>
         );
     }
@@ -308,7 +345,7 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
                 <Ionicons name="image" size={24} color="#fff" />
                 <Text style={styles.uploadButtonText}>Seleccionar Imagen de Factura</Text>
             </TouchableOpacity>
-            {facturaData && ( // Usar facturaData para la visualización
+            {facturaData && (
                 <Text style={styles.facturaUriText}>Factura seleccionada: {facturaData.name}</Text>
             )}
 
@@ -323,6 +360,9 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
     );
 };
 
+// ==========================================================
+// ESTILOS
+// ==========================================================
 const styles = StyleSheet.create({
     container: {
         flexGrow: 1,
