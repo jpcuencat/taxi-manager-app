@@ -50,10 +50,38 @@ const CreateIngresoScreen: React.FC<CreateIngresoScreenProps> = ({ navigation })
   useEffect(() => {
     const fetchTaxis = async () => {
       try {
+        console.log('CreateIngresoScreen: Iniciando fetchTaxis...');
+        
+        const userId = await AsyncStorage.getItem('userId');
+        console.log('CreateIngresoScreen: userId obtenido:', userId);
+        
         const response = await api.get('taxis/');
-        setTaxis(response.data);
-        if (response.data.length > 0) {
-          setTaxiId(response.data[0].id_taxi); // Seleccionar el primer taxi por defecto
+        console.log('CreateIngresoScreen: respuesta de API recibida:', response.data);
+        
+        // El backend devuelve datos paginados: {results: [array], count, next, previous}
+        const taxisArray = response.data.results || response.data;
+        
+        // Verificar que tengamos un array para procesar
+        if (!Array.isArray(taxisArray)) {
+          console.error('CreateIngresoScreen: No se encontró array de taxis:', response.data);
+          Alert.alert('Error', 'Formato de datos de taxis incorrecto del servidor.');
+          return;
+        }
+        
+        console.log(`CreateIngresoScreen: Procesando ${taxisArray.length} taxis para el usuario ${userId}`);
+        
+        // Filtrar solo los taxis asignados al encargado logueado
+        const filteredTaxis = taxisArray.filter((taxi: any) => {
+          const isAssigned = taxi.id_encargado_asociado === parseInt(userId || '0');
+          console.log(`CreateIngresoScreen: Taxi ${taxi.placa} - encargado: ${taxi.id_encargado_asociado}, userId: ${userId}, asignado: ${isAssigned}`);
+          return isAssigned;
+        });
+        
+        console.log('CreateIngresoScreen: taxis filtrados:', filteredTaxis.length);
+        setTaxis(filteredTaxis);
+        if (filteredTaxis.length > 0) {
+          setTaxiId(filteredTaxis[0].id_taxi); // Seleccionar el primer taxi por defecto
+          console.log('CreateIngresoScreen: primer taxi seleccionado:', filteredTaxis[0].id_taxi);
         }
       } catch (error: any) {
         console.error('Error al cargar taxis para el selector:', error.response?.data || error.message);

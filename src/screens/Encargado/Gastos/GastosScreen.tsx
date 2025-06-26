@@ -44,8 +44,47 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
     setLoading(true);
     setError(null);
     try {
+      console.log('GastosScreen: Iniciando fetchGastos...');
+      
+      const userId = await AsyncStorage.getItem('userId');
+      console.log('GastosScreen: userId obtenido:', userId);
+      
       const response = await api.get('gastos/');
-      setGastos(response.data);
+      console.log('GastosScreen: respuesta de API recibida:', response.data);
+      
+      // El backend devuelve datos paginados: {results: [array], count, next, previous}
+      const gastosArray = response.data.results || response.data;
+      
+      // Verificar que tengamos un array para procesar
+      if (!Array.isArray(gastosArray)) {
+        console.error('GastosScreen: No se encontró array de gastos:', response.data);
+        setError('Formato de datos incorrecto del servidor.');
+        return;
+      }
+      
+      console.log(`GastosScreen: Procesando ${gastosArray.length} gastos para el usuario ${userId}`);
+      console.log('GastosScreen: Muestra de gastos SIN FILTRAR (primeros 3):', JSON.stringify(gastosArray.slice(0, 3), null, 2));
+      
+      // Filtrar solo los gastos del encargado logueado
+      const filteredGastos = gastosArray.filter((gasto: Gasto) => {
+        const isOwner = gasto.id_encargado_registro === parseInt(userId || '0');
+        console.log(`GastosScreen: Gasto ${gasto.id_gasto} (${gasto.concepto_nombre}) - registrado por: ${gasto.id_encargado_registro}, userId: ${userId}, es propietario: ${isOwner}`);
+        return isOwner;
+      });
+      
+      console.log('GastosScreen: gastos filtrados:', filteredGastos.length);
+      
+      if (filteredGastos.length === 0) {
+        console.warn('GastosScreen: ⚠️  No se encontraron gastos para este usuario.');
+        console.log('GastosScreen: Verificar que el usuario tenga gastos registrados en la base de datos.');
+        console.log('GastosScreen: UserId actual:', userId);
+        console.log('GastosScreen: Total de gastos sin filtrar:', gastosArray.length);
+      } else {
+        console.log('GastosScreen: ✅ Se encontraron gastos para mostrar:', filteredGastos.length);
+      }
+      
+      console.log('GastosScreen: datos completos de gastos filtrados:', JSON.stringify(filteredGastos.slice(0, 2), null, 2)); // Solo los primeros 2 para no saturar logs
+      setGastos(filteredGastos);
     } catch (err: any) {
       console.error('Error al cargar gastos:', err.response?.data || err.message);
       setError('No se pudieron cargar los gastos. Por favor, inténtalo de nuevo.');

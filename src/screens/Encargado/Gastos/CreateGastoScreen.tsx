@@ -21,6 +21,7 @@ interface Taxi {
     id_taxi: number;
     placa: string;
     modelo: string;
+    id_encargado_asociado: number | null;
 }
 
 interface ConceptoGasto {
@@ -87,19 +88,62 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
         // Cargar datos iniciales (taxis, conceptos)
         const fetchData = async () => {
             try {
+                console.log('CreateGastoScreen: Iniciando fetchData...');
+                
+                const userId = await AsyncStorage.getItem('userId');
+                console.log('CreateGastoScreen: userId obtenido:', userId);
+                
                 const [taxisResponse, conceptosResponse] = await Promise.all([
                     api.get('taxis/'),
                     api.get('conceptos-gasto/'),
                 ]);
+                console.log('CreateGastoScreen: respuestas de API recibidas');
+                console.log('CreateGastoScreen: taxis response:', taxisResponse.data);
+                console.log('CreateGastoScreen: conceptos response:', conceptosResponse.data);
 
-                setTaxis(taxisResponse.data);
-                if (taxisResponse.data.length > 0) {
-                    setTaxiId(taxisResponse.data[0].id_taxi); // Seleccionar el primer taxi por defecto
+                // El backend devuelve datos paginados: {results: [array], count, next, previous}
+                const taxisArray = taxisResponse.data.results || taxisResponse.data;
+                const conceptosArray = conceptosResponse.data.results || conceptosResponse.data;
+                
+                // Verificar que tengamos arrays para procesar
+                if (!Array.isArray(taxisArray)) {
+                    console.error('CreateGastoScreen: No se encontró array de taxis:', taxisResponse.data);
+                    Alert.alert('Error', 'Formato de datos de taxis incorrecto del servidor.');
+                    return;
+                }
+                
+                if (!Array.isArray(conceptosArray)) {
+                    console.error('CreateGastoScreen: No se encontró array de conceptos:', conceptosResponse.data);
+                    Alert.alert('Error', 'Formato de datos de conceptos incorrecto del servidor.');
+                    return;
                 }
 
-                setConceptos(conceptosResponse.data);
-                if (conceptosResponse.data.length > 0) {
-                    setConceptoId(conceptosResponse.data[0].id_concepto_gasto); // Seleccionar el primer concepto por defecto
+                console.log(`CreateGastoScreen: Procesando ${taxisArray.length} taxis y ${conceptosArray.length} conceptos para el usuario ${userId}`);
+                console.log('CreateGastoScreen: Muestra de taxis SIN FILTRAR (primeros 3):', JSON.stringify(taxisArray.slice(0, 3), null, 2));
+                console.log('CreateGastoScreen: Muestra de conceptos SIN FILTRAR (primeros 3):', JSON.stringify(conceptosArray.slice(0, 3), null, 2));
+                
+                // Filtrar solo los taxis asignados al encargado logueado
+                const filteredTaxis = taxisArray.filter((taxi: Taxi) => {
+                    const isAssigned = taxi.id_encargado_asociado === parseInt(userId || '0');
+                    console.log(`CreateGastoScreen: Taxi ${taxi.placa} - encargado: ${taxi.id_encargado_asociado}, userId: ${userId}, asignado: ${isAssigned}`);
+                    return isAssigned;
+                });
+                
+                console.log('CreateGastoScreen: taxis filtrados:', filteredTaxis.length);
+                setTaxis(filteredTaxis);
+                if (filteredTaxis.length > 0) {
+                    setTaxiId(filteredTaxis[0].id_taxi); // Seleccionar el primer taxi por defecto
+                    console.log('CreateGastoScreen: primer taxi seleccionado:', filteredTaxis[0].id_taxi);
+                }
+
+                // Los conceptos no necesitan filtrado por usuario, son globales
+                console.log('CreateGastoScreen: configurando conceptos:', conceptosArray.length);
+                setConceptos(conceptosArray);
+                if (conceptosArray.length > 0) {
+                    setConceptoId(conceptosArray[0].id_concepto_gasto); // Seleccionar el primer concepto por defecto
+                    console.log('CreateGastoScreen: primer concepto seleccionado:', conceptosArray[0].id_concepto_gasto);
+                } else {
+                    console.warn('CreateGastoScreen: ⚠️  No se encontraron conceptos de gasto.');
                 }
 
             } catch (error: any) {

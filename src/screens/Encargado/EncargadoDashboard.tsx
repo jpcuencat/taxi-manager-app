@@ -32,8 +32,35 @@ const EncargadoDashboard: React.FC<EncargadoDashboardProps> = ({ navigation }) =
     setLoading(true);
     setError(null);
     try {
+      console.log('EncargadoDashboard: Iniciando fetchTaxis...');
+      
+      const userId = await AsyncStorage.getItem('userId');
+      console.log('EncargadoDashboard: userId obtenido:', userId);
+      
       const response = await api.get('taxis/');
-      setTaxis(response.data);
+      console.log('EncargadoDashboard: respuesta de API recibida:', response.data);
+      
+      // El backend devuelve datos paginados: {results: [array], count, next, previous}
+      const taxisArray = response.data.results || response.data;
+      
+      // Verificar que tengamos un array para procesar
+      if (!Array.isArray(taxisArray)) {
+        console.error('EncargadoDashboard: No se encontró array de taxis:', response.data);
+        setError('Formato de datos incorrecto del servidor.');
+        return;
+      }
+      
+      console.log(`EncargadoDashboard: Procesando ${taxisArray.length} taxis para el usuario ${userId}`);
+      
+      // Filtrar solo los taxis asignados al encargado logueado
+      const filteredTaxis = taxisArray.filter((taxi: Taxi) => {
+        const isAssigned = taxi.id_encargado_asociado === parseInt(userId || '0');
+        console.log(`EncargadoDashboard: Taxi ${taxi.placa} - encargado: ${taxi.id_encargado_asociado}, userId: ${userId}, asignado: ${isAssigned}`);
+        return isAssigned;
+      });
+      
+      console.log('EncargadoDashboard: taxis filtrados:', filteredTaxis);
+      setTaxis(filteredTaxis);
     } catch (err: any) {
       console.error('Error al cargar taxis:', err.response?.data || err.message);
       setError('No se pudieron cargar los taxis. Por favor, inténtalo de nuevo.');

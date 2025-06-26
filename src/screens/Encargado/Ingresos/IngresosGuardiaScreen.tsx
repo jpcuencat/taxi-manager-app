@@ -35,8 +35,47 @@ const IngresosGuardiaScreen: React.FC<IngresosGuardiaScreenProps> = ({ navigatio
     setLoading(true);
     setError(null);
     try {
+      console.log('IngresosGuardiaScreen: Iniciando fetchIngresos...');
+      
+      const userId = await AsyncStorage.getItem('userId');
+      console.log('IngresosGuardiaScreen: userId obtenido:', userId);
+      
       const response = await api.get('ingresos-guardia/');
-      setIngresos(response.data);
+      console.log('IngresosGuardiaScreen: respuesta de API recibida:', response.data);
+      
+      // El backend devuelve datos paginados: {results: [array], count, next, previous}
+      const ingresosArray = response.data.results || response.data;
+      
+      // Verificar que tengamos un array para procesar
+      if (!Array.isArray(ingresosArray)) {
+        console.error('IngresosGuardiaScreen: No se encontró array de ingresos:', response.data);
+        setError('Formato de datos incorrecto del servidor.');
+        return;
+      }
+      
+      console.log(`IngresosGuardiaScreen: Procesando ${ingresosArray.length} ingresos para el usuario ${userId}`);
+      console.log('IngresosGuardiaScreen: Muestra de ingresos SIN FILTRAR (primeros 3):', JSON.stringify(ingresosArray.slice(0, 3), null, 2));
+      
+      // Filtrar solo los ingresos del encargado logueado
+      const filteredIngresos = ingresosArray.filter((ingreso: IngresoGuardia) => {
+        const isOwner = ingreso.id_encargado_registro === parseInt(userId || '0');
+        console.log(`IngresosGuardiaScreen: Ingreso ${ingreso.id_ingreso_guardia} (${ingreso.taxi_placa}) - registrado por: ${ingreso.id_encargado_registro}, userId: ${userId}, es propietario: ${isOwner}`);
+        return isOwner;
+      });
+      
+      console.log('IngresosGuardiaScreen: ingresos filtrados:', filteredIngresos.length);
+      
+      if (filteredIngresos.length === 0) {
+        console.warn('IngresosGuardiaScreen: ⚠️  No se encontraron ingresos para este usuario.');
+        console.log('IngresosGuardiaScreen: Verificar que el usuario tenga ingresos registrados en la base de datos.');
+        console.log('IngresosGuardiaScreen: UserId actual:', userId);
+        console.log('IngresosGuardiaScreen: Total de ingresos sin filtrar:', ingresosArray.length);
+      } else {
+        console.log('IngresosGuardiaScreen: ✅ Se encontraron ingresos para mostrar:', filteredIngresos.length);
+      }
+      
+      console.log('IngresosGuardiaScreen: datos completos de ingresos filtrados:', JSON.stringify(filteredIngresos.slice(0, 2), null, 2)); // Solo los primeros 2 para no saturar logs
+      setIngresos(filteredIngresos);
     } catch (err: any) {
       console.error('Error al cargar ingresos de guardia:', err.response?.data || err.message);
       setError('No se pudieron cargar los ingresos. Por favor, inténtalo de nuevo.');
