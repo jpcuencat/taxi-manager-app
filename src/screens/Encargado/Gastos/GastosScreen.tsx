@@ -1,6 +1,6 @@
 // src/screens/Encargado/Gastos/GastosScreen.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity, Button } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity, Button, Modal, Image, Dimensions, ScrollView } from 'react-native';
 import api from '../../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -39,6 +39,11 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  
+  // Estados para el modal de factura
+  const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
+  const [invoiceModalVisible, setInvoiceModalVisible] = useState<boolean>(false);
+  const [imageLoading, setImageLoading] = useState<boolean>(false);
 
   const fetchGastos = useCallback(async () => {
     setLoading(true);
@@ -111,29 +116,58 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
     fetchGastos();
   }, [fetchGastos]);
 
+  // Función para abrir el modal de factura
+  const openInvoiceModal = (invoiceUrl: string) => {
+    setSelectedInvoice(invoiceUrl);
+    setInvoiceModalVisible(true);
+    setImageLoading(true);
+  };
+
+  // Función para cerrar el modal de factura
+  const closeInvoiceModal = () => {
+    setInvoiceModalVisible(false);
+    setSelectedInvoice(null);
+    setImageLoading(false);
+  };
+
+  // Función para verificar si un gasto tiene factura
+  const hasInvoice = (gasto: Gasto) => {
+    return gasto.url_factura_adjunta && gasto.url_factura_adjunta.trim() !== '';
+  };
+
   const renderGastoItem = ({ item }: { item: Gasto }) => (
-    <TouchableOpacity
-      style={styles.gastoItem}
-      onPress={() => Alert.alert('Detalles del Gasto',
-        `Gasto ID: ${item.id_gasto}\n` +
-        `Taxi: ${item.id_taxi_placa}\n` + // **Usar id_taxi_placa**
-        `Concepto: ${item.concepto_nombre}\n` + // **Usar concepto_nombre**
-        `Monto: $${item.monto}\n` +
-        `Fecha: ${item.fecha_gasto}\n` + // **Usar fecha_gasto**
-        `Registrado por: ${item.id_encargado_registro_username}\n` + // **Usar id_encargado_registro_username**
-        `Descripción: ${item.descripcion || 'N/A'}`
+    <View style={styles.gastoItem}>
+      <TouchableOpacity
+        style={styles.gastoItemContent}
+        onPress={() => Alert.alert('Detalles del Gasto',
+          `Gasto ID: ${item.id_gasto}\n` +
+          `Taxi: ${item.id_taxi_placa}\n` + // **Usar id_taxi_placa**
+          `Concepto: ${item.concepto_nombre}\n` + // **Usar concepto_nombre**
+          `Monto: $${item.monto}\n` +
+          `Fecha: ${item.fecha_gasto}\n` + // **Usar fecha_gasto**
+          `Registrado por: ${item.id_encargado_registro_username}\n` + // **Usar id_encargado_registro_username**
+          `Descripción: ${item.descripcion || 'N/A'}`
+        )}
+      >
+        <Text style={styles.itemTitle}>{item.concepto_nombre}</Text>
+        <Text style={styles.itemText}>Taxi: {item.id_taxi_placa}</Text>
+        <Text style={styles.itemText}>Monto: ${item.monto}</Text>
+        <Text style={styles.itemText}>Fecha: {item.fecha_gasto}</Text>
+        <Text style={[styles.itemStatus, { color: item.estado_verificacion === 'aprobado' ? 'green' : item.estado_verificacion === 'rechazado' ? 'red' : 'orange' }]}>
+                Estado: {item.estado_verificacion}
+              </Text>
+      </TouchableOpacity>
+      
+      {/* Icono de lupa para ver factura */}
+      {hasInvoice(item) && (
+        <TouchableOpacity
+          style={styles.invoiceIcon}
+          onPress={() => openInvoiceModal(item.url_factura_adjunta!)}
+        >
+          <Ionicons name="search" size={24} color="#007bff" />
+        </TouchableOpacity>
       )}
-    >
-      <Text style={styles.itemTitle}>{item.concepto_nombre}</Text>
-      <Text style={styles.itemText}>Taxi: {item.id_taxi_placa}</Text>
-      <Text style={styles.itemText}>Monto: ${item.monto}</Text>
-      <Text style={styles.itemText}>Fecha: {item.fecha_gasto}</Text>
-      <Text style={[styles.itemStatus, { color: item.estado_verificacion === 'aprobado' ? 'green' : item.estado_verificacion === 'rechazado' ? 'red' : 'orange' }]}>
-              Estado: {item.estado_verificacion}
-            </Text>
-      {/* Puedes añadir más detalles aquí si quieres: */}
-      {/* <Text style={styles.itemText}>Registrado por: {item.id_encargado_registro_username}</Text> */}
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading) {
@@ -172,6 +206,52 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
       >
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
+      
+      {/* Modal para mostrar la factura */}
+      <Modal
+        visible={invoiceModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeInvoiceModal}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={closeInvoiceModal}
+            >
+              <Ionicons name="close" size={30} color="#fff" />
+            </TouchableOpacity>
+            
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+            >
+              {selectedInvoice && (
+                <Image
+                  source={{ uri: selectedInvoice }}
+                  style={styles.invoiceImage}
+                  resizeMode="contain"
+                  onLoadStart={() => setImageLoading(true)}
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => {
+                    setImageLoading(false);
+                    Alert.alert('Error', 'No se pudo cargar la factura');
+                  }}
+                />
+              )}
+              {imageLoading && (
+                <View style={styles.imageLoadingContainer}>
+                  <ActivityIndicator size="large" color="#007bff" />
+                  <Text style={styles.loadingText}>Cargando factura...</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -201,7 +281,6 @@ const styles = StyleSheet.create({
   },
   gastoItem: {
     backgroundColor: '#fff',
-    padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     shadowColor: '#000',
@@ -209,6 +288,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gastoItemContent: {
+    flex: 1,
+    padding: 15,
+  },
+  invoiceIcon: {
+    padding: 10,
+    marginRight: 10,
+    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   itemTitle: {
     fontSize: 18,
@@ -247,6 +340,57 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  // Estilos para el modal de factura
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: Dimensions.get('window').width * 0.95,
+    height: Dimensions.get('window').height * 0.85,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 5,
+  },
+  modalScrollView: {
+    flex: 1,
+    padding: 10,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  invoiceImage: {
+    width: Dimensions.get('window').width * 0.85,
+    height: Dimensions.get('window').height * 0.7,
+  },
+  imageLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#007bff',
   },
 });
 
