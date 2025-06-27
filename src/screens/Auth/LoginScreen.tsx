@@ -1,17 +1,26 @@
 // src/screens/Auth/LoginScreen.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Dimensions, 
+  TouchableOpacity,
+  ImageBackground 
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Ionicons } from '@expo/vector-icons';
 
-// Asegúrate de que esta ruta a 'config.ts' sea correcta.
-// Por ejemplo, si config.ts está en src/utils, sería '../utils/config'.
-import { API_BASE_URL } from '../../utils/config'; // Ajustar ruta si se mueve config.ts
-
-// Define los tipos para tus rutas (igual que en App.tsx)
-// Asegúrate de que RootStackParamList en App.tsx sea exportado para poder importarlo aquí.
-import { RootStackParamList } from '../../../App'; // Ajusta la ruta si App.tsx no está en la raíz
+import { API_BASE_URL } from '../../utils/config';
+import { RootStackParamList } from '../../../App';
+import { CustomButton, useToast } from '../../components';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -22,15 +31,18 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false); // Para mostrar un indicador de carga
+  const [loading, setLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  
+  const { showToast, ToastContainer } = useToast();
 
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert('Error', 'Por favor, ingresa tu nombre de usuario y contraseña.');
+      showToast('Por favor, ingresa tu nombre de usuario y contraseña.', 'error');
       return;
     }
 
-    setLoading(true); // Iniciar la carga
+    setLoading(true);
     try {
       // 1. Obtener tokens
       const response = await axios.post(`${API_BASE_URL}token/`, {
@@ -45,14 +57,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       // 2. Obtener la información del usuario (incluyendo el rol)
       const userResponse = await axios.get(`${API_BASE_URL}usuarios/me/`, {
         headers: {
-          Authorization: `Bearer ${access}`, // Usar el token recién obtenido
+          Authorization: `Bearer ${access}`,
         },
       });
       const userRole = userResponse.data.rol;
       await AsyncStorage.setItem('userRole', userRole);
-      await AsyncStorage.setItem('userId', userResponse.data.id.toString()); // Guarda el ID del usuario también
+      await AsyncStorage.setItem('userId', userResponse.data.id.toString());
 
-      Alert.alert('Éxito', `¡Bienvenido, ${username}!`);
+      showToast(`¡Bienvenido, ${username}!`, 'success');
 
       // 3. Navegar según el rol
       if (userRole === 'administrador') {
@@ -62,8 +74,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       } else if (userRole === 'encargado') {
         navigation.replace('EncargadoDashboard');
       } else {
-        // En caso de un rol desconocido, redirige al login y muestra un error
-        Alert.alert('Error', 'Rol de usuario no reconocido. Contacta al administrador.');
+        showToast('Rol de usuario no reconocido. Contacta al administrador.', 'error');
         await AsyncStorage.clear();
         navigation.replace('Login');
       }
@@ -74,69 +85,183 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
       }
-      Alert.alert('Error', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
-      setLoading(false); // Finalizar la carga
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Iniciar Sesión</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Nombre de Usuario"
-        placeholderTextColor="#999"
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-        keyboardType="email-address" // Sugiere teclado de email para usuario
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Contraseña"
-        placeholderTextColor="#999"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <Button
-        title={loading ? "Iniciando..." : "Iniciar Sesión"}
-        onPress={handleLogin}
-        disabled={loading} // Deshabilita el botón mientras carga
-      />
-      {loading && <ActivityIndicator size="small" color="#0000ff" style={styles.spinner} />}
-    </View>
+    <LinearGradient
+      colors={['#f3e7e9', '#e3eeff']}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.container}
+    >
+      <ToastContainer />
+      
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
+        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+          
+          {/* Taxi Icon */}
+          <View style={styles.userIconContainer}>
+            <Ionicons name="car" size={120} color="rgba(63, 58, 58, 0.9)" />
+          </View>
+
+          {/* Login Title */}
+          <Text style={styles.loginTitle}>LOGIN</Text>
+
+          {/* Login Form */}
+          <View style={styles.formContainer}>
+            {/* Username Input */}
+            <View style={styles.inputRow}>
+              <Ionicons name="mail" size={24} color="rgba(63, 58, 58, 0.9)" style={styles.inputIcon} />
+              <Text style={styles.inputLabel}>Nombre de usuario</Text>
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder=""
+              placeholderTextColor="rgba(63, 58, 58, 0.9)"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              keyboardType="default"
+            />
+
+            {/* Password Input */}
+            <View style={styles.inputRow}>
+              <Ionicons name="lock-closed" size={24} color="rgba(63, 58, 58, 0.9)" style={styles.inputIcon} />
+              <Text style={styles.inputLabel}>Contraseña</Text>
+            </View>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder=""
+                placeholderTextColor="rgba(63, 58, 58, 0.9)"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity 
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={20}
+                  color="rgba(63, 58, 58, 0.9)"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Login Button */}
+            <TouchableOpacity 
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <Text style={styles.loginButtonText}>
+                {loading ? "INICIANDO..." : "INICIAR SESION"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 };
+
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f8f8f8', // Un fondo suave
+    paddingHorizontal: 40,
+    paddingVertical: 60,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+  userIconContainer: {
+    alignItems: 'center',
     marginBottom: 30,
   },
-  input: {
-    width: '90%',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 15,
-    backgroundColor: '#fff',
-    fontSize: 16,
-    color: '#333',
+  loginTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'black',
+    textAlign: 'center',
+    marginBottom: 40,
+    letterSpacing: 2,
   },
-  spinner: {
-    marginTop: 10,
+  formContainer: {
+    width: '100%',
+    maxWidth: 300,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  inputLabel: {
+    color: 'rgba(63, 58, 58, 0.9)',
+    fontSize: 16,
+    fontWeight: '400',
+  },
+  input: {
+    width: '100%',
+    height: 45,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(63, 58, 58, 0.9)',
+    color: 'black',
+    fontSize: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    marginBottom: 25,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 0,
+    top: 10,
+    padding: 5,
+  },
+  loginButton: {
+    backgroundColor: '#FF0000',
+    borderRadius: 25,
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    marginTop: 30,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#CC0000',
+    opacity: 0.7,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
 });
 

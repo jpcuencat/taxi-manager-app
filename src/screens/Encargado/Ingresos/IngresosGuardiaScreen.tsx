@@ -1,11 +1,13 @@
 // src/screens/Encargado/Ingresos/IngresosGuardiaScreen.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
-import api from '../../../services/api'; 
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import api from '../../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../../App';
-import { Ionicons } from '@expo/vector-icons'; // Para el ícono de "añadir"
+import { Ionicons } from '@expo/vector-icons';
+import { CustomCard, CustomButton, useToast } from '../../../components';
 
 // Definición de tipos para los datos del ingreso de guardia
 interface IngresoGuardia {
@@ -30,6 +32,8 @@ const IngresosGuardiaScreen: React.FC<IngresosGuardiaScreenProps> = ({ navigatio
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  
+  const { showToast, ToastContainer } = useToast();
 
   const fetchIngresos = useCallback(async () => {
     setLoading(true);
@@ -104,39 +108,79 @@ const IngresosGuardiaScreen: React.FC<IngresosGuardiaScreenProps> = ({ navigatio
   }, [fetchIngresos]);
 
   const renderIngresoItem = ({ item }: { item: IngresoGuardia }) => (
-    <TouchableOpacity
-      style={styles.ingresoItem}
-      onPress={() => Alert.alert('Detalles', `Ingreso ID: ${item.id_ingreso_guardia}\nTaxi: ${item.taxi_placa}\nMonto: $${item.monto}\nFecha: ${item.fecha_pago}\nEstado: ${item.estado_verificacion}`)}
+    <CustomCard
+      style={styles.ingresoCard}
+      onPress={() => Alert.alert('Detalles', 
+        `Ingreso ID: ${item.id_ingreso_guardia}\n` +
+        `Taxi: ${item.taxi_placa}\n` +
+        `Monto: $${item.monto}\n` +
+        `Fecha: ${item.fecha_pago}\n` +
+        `Estado: ${item.estado_verificacion}`
+      )}
     >
-      <Text style={styles.itemText}>Taxi: {item.taxi_placa}</Text>
-      <Text style={styles.itemText}>Fecha: {item.fecha_pago}</Text>
-      <Text style={styles.itemText}>Monto: ${item.monto}</Text>
-      <Text style={[styles.itemStatus, { color: item.estado_verificacion === 'aprobado' ? 'green' : item.estado_verificacion === 'rechazado' ? 'red' : 'orange' }]}>
-        Estado: {item.estado_verificacion}
-      </Text>
-    </TouchableOpacity>
+      <CustomCard.Header
+        title={`Ingreso de Guardia`}
+        subtitle={`Taxi: ${item.taxi_placa}`}
+        icon="cash"
+        iconColor="#28a745"
+      />
+      <CustomCard.Content>
+        <Text style={styles.itemText}>Fecha: {item.fecha_pago}</Text>
+        <Text style={styles.itemText}>Monto: ${item.monto}</Text>
+        <Text style={[
+          styles.itemStatus, 
+          { color: 
+            item.estado_verificacion === 'aprobado' ? '#28a745' : 
+            item.estado_verificacion === 'rechazado' ? '#dc3545' : 
+            '#ffc107' 
+          }
+        ]}>
+          Estado: {item.estado_verificacion}
+        </Text>
+      </CustomCard.Content>
+    </CustomCard>
   );
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <ActivityIndicator size="large" color="#0000ff" />
         <Text>Cargando ingresos...</Text>
-      </View>
+      </LinearGradient>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <Text style={styles.errorText}>{error}</Text>
-        <Button title="Reintentar" onPress={fetchIngresos} />
-      </View>
+        <CustomButton 
+          title="Reintentar" 
+          onPress={fetchIngresos}
+          variant="primary"
+          icon="refresh"
+        />
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#f3e7e9', '#e3eeff']}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.container}
+    >
       <Text style={styles.title}>Mis Ingresos de Guardia</Text>
       <FlatList
         data={ingresos}
@@ -154,7 +198,7 @@ const IngresosGuardiaScreen: React.FC<IngresosGuardiaScreenProps> = ({ navigatio
       >
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -223,6 +267,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  ingresoCard: {
+    marginHorizontal: 0,
+    marginVertical: 8,
   },
 });
 

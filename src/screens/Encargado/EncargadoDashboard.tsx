@@ -1,10 +1,13 @@
 // src/screens/Encargado/EncargadoDashboard.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Button, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import api from '../../services/api';
-import { RootStackParamList } from '../../../App'; // Importa desde App.tsx
+import { RootStackParamList } from '../../../App';
+import { CustomCard, CustomButton, useToast } from '../../components';
+import { Ionicons } from '@expo/vector-icons';
 
 type EncargadoDashboardNavigationProp = StackNavigationProp<RootStackParamList, 'EncargadoDashboard'>;
 
@@ -101,42 +104,104 @@ const EncargadoDashboard: React.FC<EncargadoDashboardProps> = ({ navigation }) =
   };
 
   const renderTaxiItem = ({ item }: { item: Taxi }) => (
-    <TouchableOpacity style={styles.taxiItem} onPress={() => 
-    Alert.alert('Taxi', 
-    `Placa: ${item.placa}\n` +
-    `Modelo: ${item.modelo}`)}>
-      <Text style={styles.taxiText}>Placa: {item.placa}</Text>
-      <Text style={styles.taxiText}>Modelo: {item.modelo} ({item.ano})</Text>
-      <Text style={styles.taxiText}>Kilometraje: {item.kilometraje_actual}</Text>
-    </TouchableOpacity>
+    <CustomCard
+      style={styles.taxiCard}
+      onPress={() => 
+        Alert.alert('Taxi', 
+          `Placa: ${item.placa}\n` +
+          `Modelo: ${item.modelo}\n` +
+          `Año: ${item.ano}\n` +
+          `Kilometraje: ${item.kilometraje_actual}`
+        )
+      }
+    >
+      <CustomCard.Header
+        title={`Taxi ${item.placa}`}
+        subtitle={`${item.modelo} (${item.ano})`}
+        icon="car-sport"
+        iconColor="#28a745"
+      />
+      <CustomCard.Content>
+        <Text style={styles.taxiText}>Kilometraje: {item.kilometraje_actual}</Text>
+      </CustomCard.Content>
+    </CustomCard>
   );
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <ActivityIndicator size="large" color="#0000ff" />
         <Text>Cargando taxis...</Text>
-      </View>
+      </LinearGradient>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <Text style={styles.errorText}>{error}</Text>
-        <Button title="Reintentar" onPress={fetchTaxis} />
-        <Button title="Cerrar Sesión" onPress={handleLogout} />
-      </View>
+        <View style={styles.errorButtonContainer}>
+          <CustomButton 
+            title="Reintentar" 
+            onPress={fetchTaxis}
+            variant="primary"
+            icon="refresh"
+            style={{ marginBottom: 10 }}
+          />
+          <CustomButton 
+            title="Cerrar Sesión" 
+            onPress={handleLogout}
+            variant="danger"
+            icon="log-out"
+          />
+        </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#f3e7e9', '#e3eeff']}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.container}
+    >
       <Text style={styles.title}>Bienvenido, Encargado</Text>
       <View style={styles.buttonContainer}>
-        <Button title="Ver Ingresos" onPress={navigateToIngresosGuardia} />
-        <Button title="Ver Gastos" onPress={navigateToGastos} /> 
-        <Button title="Cerrar Sesión" onPress={handleLogout} />
+        <CustomButton 
+          title="Ver Ingresos" 
+          onPress={navigateToIngresosGuardia}
+          variant="success"
+          icon="cash"
+          size="small"
+          style={styles.dashboardButton}
+        />
+        <CustomButton 
+          title="Ver Gastos" 
+          onPress={navigateToGastos}
+          variant="danger"
+          icon="receipt"
+          size="small"
+          style={styles.dashboardButton}
+        />
+        <CustomButton 
+          title="Cerrar Sesión" 
+          onPress={handleLogout}
+          variant="secondary"
+          icon="log-out"
+          size="small"
+          style={styles.dashboardButton}
+        />
       </View>
 
       <Text style={styles.subtitle}>Tus Taxis Asignados</Text>
@@ -149,7 +214,7 @@ const EncargadoDashboard: React.FC<EncargadoDashboardProps> = ({ navigation }) =
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       />
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -209,7 +274,19 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
     color: '#888',
-  }
+  },
+  errorButtonContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  dashboardButton: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  taxiCard: {
+    marginHorizontal: 0,
+    marginVertical: 6,
+  },
 });
 
 export default EncargadoDashboard;

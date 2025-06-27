@@ -1,11 +1,13 @@
 // src/screens/Encargado/Gastos/GastosScreen.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity, Button, Modal, Image, Dimensions, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, Modal, Image, Dimensions, ScrollView, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../../App';
 import { Ionicons } from '@expo/vector-icons';
+import { CustomCard, CustomButton, useToast } from '../../../components';
 
 
 // Definición de tipos para los datos del gasto
@@ -44,6 +46,9 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [invoiceModalVisible, setInvoiceModalVisible] = useState<boolean>(false);
   const [imageLoading, setImageLoading] = useState<boolean>(false);
+  
+  // Hook para toast
+  const { showToast, ToastContainer } = useToast();
 
   const fetchGastos = useCallback(async () => {
     setLoading(true);
@@ -136,60 +141,92 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
   };
 
   const renderGastoItem = ({ item }: { item: Gasto }) => (
-    <View style={styles.gastoItem}>
-      <TouchableOpacity
-        style={styles.gastoItemContent}
-        onPress={() => Alert.alert('Detalles del Gasto',
-          `Gasto ID: ${item.id_gasto}\n` +
-          `Taxi: ${item.id_taxi_placa}\n` + // **Usar id_taxi_placa**
-          `Concepto: ${item.concepto_nombre}\n` + // **Usar concepto_nombre**
-          `Monto: $${item.monto}\n` +
-          `Fecha: ${item.fecha_gasto}\n` + // **Usar fecha_gasto**
-          `Registrado por: ${item.id_encargado_registro_username}\n` + // **Usar id_encargado_registro_username**
-          `Descripción: ${item.descripcion || 'N/A'}`
-        )}
-      >
-        <Text style={styles.itemTitle}>{item.concepto_nombre}</Text>
-        <Text style={styles.itemText}>Taxi: {item.id_taxi_placa}</Text>
+    <CustomCard
+      style={styles.gastoCard}
+      onPress={() => Alert.alert('Detalles del Gasto',
+        `Gasto ID: ${item.id_gasto}\n` +
+        `Taxi: ${item.id_taxi_placa}\n` +
+        `Concepto: ${item.concepto_nombre}\n` +
+        `Monto: $${item.monto}\n` +
+        `Fecha: ${item.fecha_gasto}\n` +
+        `Registrado por: ${item.id_encargado_registro_username}\n` +
+        `Descripción: ${item.descripcion || 'N/A'}`
+      )}
+    >
+      <CustomCard.Header
+        title={item.concepto_nombre}
+        subtitle={`Taxi: ${item.id_taxi_placa}`}
+        icon="car"
+        iconColor="#007bff"
+        rightElement={
+          hasInvoice(item) ? (
+            <TouchableOpacity
+              style={styles.invoiceIcon}
+              onPress={() => openInvoiceModal(item.url_factura_adjunta!)}
+            >
+              <Ionicons name="search" size={24} color="#007bff" />
+            </TouchableOpacity>
+          ) : null
+        }
+      />
+      <CustomCard.Content>
         <Text style={styles.itemText}>Monto: ${item.monto}</Text>
         <Text style={styles.itemText}>Fecha: {item.fecha_gasto}</Text>
-        <Text style={[styles.itemStatus, { color: item.estado_verificacion === 'aprobado' ? 'green' : item.estado_verificacion === 'rechazado' ? 'red' : 'orange' }]}>
-                Estado: {item.estado_verificacion}
-              </Text>
-      </TouchableOpacity>
-      
-      {/* Icono de lupa para ver factura */}
-      {hasInvoice(item) && (
-        <TouchableOpacity
-          style={styles.invoiceIcon}
-          onPress={() => openInvoiceModal(item.url_factura_adjunta!)}
-        >
-          <Ionicons name="search" size={24} color="#007bff" />
-        </TouchableOpacity>
-      )}
-    </View>
+        <Text style={[
+          styles.itemStatus, 
+          { color: 
+            item.estado_verificacion === 'aprobado' ? '#28a745' : 
+            item.estado_verificacion === 'rechazado' ? '#dc3545' : 
+            '#ffc107' 
+          }
+        ]}>
+          Estado: {item.estado_verificacion}
+        </Text>
+      </CustomCard.Content>
+    </CustomCard>
   );
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <ActivityIndicator size="large" color="#0000ff" />
         <Text>Cargando gastos...</Text>
-      </View>
+      </LinearGradient>
     );
   }
   
   if (error) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <Text style={styles.errorText}>{error}</Text>
-        <Button title="Reintentar" onPress={fetchGastos} />
-      </View>
+        <CustomButton 
+          title="Reintentar" 
+          onPress={fetchGastos} 
+          variant="primary"
+          icon="refresh"
+        />
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#f3e7e9', '#e3eeff']}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.container}
+    >
+      <ToastContainer />
       <Text style={styles.title}>Mis Gastos Registrados</Text>
       <FlatList
         data={gastos}
@@ -238,7 +275,7 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
                   onLoad={() => setImageLoading(false)}
                   onError={() => {
                     setImageLoading(false);
-                    Alert.alert('Error', 'No se pudo cargar la factura');
+                    showToast('No se pudo cargar la factura', 'error');
                   }}
                 />
               )}
@@ -252,7 +289,7 @@ const GastosScreen: React.FC<GastosScreenProps> = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -391,6 +428,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#007bff',
+  },
+  gastoCard: {
+    marginHorizontal: 0,
+    marginVertical: 8,
   },
 });
 

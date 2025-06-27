@@ -1,6 +1,7 @@
 // src/screens/Validator/ValidatorDashboard.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -23,11 +24,16 @@ const ValidatorDashboard: React.FC<ValidatorDashboardProps> = ({ navigation }) =
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#f3e7e9', '#e3eeff']}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={styles.container}
+    >
       <Text style={styles.title}>Bienvenido, Validador</Text>
       <Button title="Cerrar Sesión" onPress={handleLogout} />
       {/* Aquí irán las opciones y navegación para el validador */}
-    </View>
+    </LinearGradient>
   );
 };
 

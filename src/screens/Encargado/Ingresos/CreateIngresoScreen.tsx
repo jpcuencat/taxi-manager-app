@@ -1,4 +1,6 @@
 // src/screens/Encargado/Ingresos/CreateIngresoScreen.tsx
+import { CustomCard, CustomButton, useToast } from '../../../components';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, RefreshControl, TouchableOpacity, Button, ScrollView, TextInput } from 'react-native';
@@ -149,25 +151,41 @@ const CreateIngresoScreen: React.FC<CreateIngresoScreenProps> = ({ navigation })
 
   if (loadingTaxis) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <ActivityIndicator size="large" color="#0000ff" />
         <Text>Cargando taxis disponibles...</Text>
-      </View>
+      </LinearGradient>
     );
   }
 
   if (taxis.length === 0) {
     return (
-      <View style={styles.centered}>
+      <LinearGradient
+        colors={['#f3e7e9', '#e3eeff']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.centered}
+      >
         <Text style={styles.errorText}>No tienes taxis asignados para registrar ingresos.</Text>
         <Button title="Volver" onPress={() => navigation.goBack()} />
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Registrar Nuevo Ingreso de Guardia</Text>
+    <LinearGradient
+      colors={['#f3e7e9', '#e3eeff']}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={{ flex: 1 }}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Registrar Nuevo Ingreso de Guardia</Text>
 
       <Text style={styles.label}>Seleccionar Taxi:</Text>
       <View style={styles.pickerContainer}>
@@ -213,14 +231,22 @@ const CreateIngresoScreen: React.FC<CreateIngresoScreenProps> = ({ navigation })
         value={monto}
         onChangeText={setMonto}
       />
+     
 
-      <Button
+      <CustomButton
         title={loadingSubmit ? "Registrando..." : "Registrar Ingreso"}
         onPress={handleCreateIngreso}
         disabled={loadingSubmit}
-        color="#28a745" // Color para botón de guardar
+        variant="success"
+        icon="cash"
+        size="small"
+      //  style={styles.dashboardButton}
       />
+
+     
+
     </ScrollView>
+    </LinearGradient>
   );
 };
 
@@ -228,7 +254,10 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: '#f8f8f8',
+  },
+  dashboardButton: {
+    flex: 1,
+    marginHorizontal: 5,
   },
   centered: {
     flex: 1,

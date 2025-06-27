@@ -1,6 +1,7 @@
 // src/screens/Encargado/Gastos/CreateGastoScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, ScrollView, TouchableOpacity, Platform, Image } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, ActivityIndicator, ScrollView, TouchableOpacity, Platform, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../../services/api';
@@ -9,7 +10,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../../App';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system'; // ¡NUEVA IMPORTACIÓN NECESARIA!
+import * as FileSystem from 'expo-file-system';
+import { CustomButton, useToast } from '../../../components';
 
 type CreateGastoScreenNavigationProp = StackNavigationProp<RootStackParamList, 'CreateGasto'>;
 
@@ -51,6 +53,11 @@ const sanitizeText = (text: string | null | undefined): string => {
 // COMPONENTE PRINCIPAL
 // ==========================================================
 const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => {
+    // ==========================================================
+    // HOOKS
+    // ==========================================================
+    const { showToast, ToastContainer } = useToast();
+    
     // ==========================================================
     // ESTADOS
     // ==========================================================
@@ -291,34 +298,66 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
     // ==========================================================
     if (loadingData) {
         return (
-            <View style={styles.centered}>
+            <LinearGradient
+              colors={['#f3e7e9', '#e3eeff']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.centered}
+            >
                 <ActivityIndicator size="large" color="#dc3545" />
                 <Text>Cargando datos para el formulario...</Text>
-            </View>
+            </LinearGradient>
         );
     }
 
     if (taxis.length === 0) {
         return (
-            <View style={styles.centered}>
+            <LinearGradient
+              colors={['#f3e7e9', '#e3eeff']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.centered}
+            >
                 <Text style={styles.errorText}>No tienes taxis asignados para registrar gastos.</Text>
-                <Button title="Volver" onPress={() => navigation.goBack()} color="#dc3545" />
-            </View>
+                <CustomButton 
+                    title="Volver" 
+                    onPress={() => navigation.goBack()}
+                    variant="danger"
+                    icon="arrow-back"
+                />
+            </LinearGradient>
         );
     }
 
     if (conceptos.length === 0) {
         return (
-            <View style={styles.centered}>
+            <LinearGradient
+              colors={['#f3e7e9', '#e3eeff']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.centered}
+            >
                 <Text style={styles.errorText}>No hay conceptos de gasto definidos. Pide a un administrador que los cree.</Text>
-                <Button title="Volver" onPress={() => navigation.goBack()} color="#dc3545" />
-            </View>
+                <CustomButton 
+                    title="Volver" 
+                    onPress={() => navigation.goBack()}
+                    variant="danger"
+                    icon="arrow-back"
+                />
+            </LinearGradient>
         );
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>Registrar Nuevo Gasto</Text>
+        <LinearGradient
+          colors={['#f3e7e9', '#e3eeff']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={{ flex: 1 }}
+        >
+            <ToastContainer />
+            <ScrollView contentContainerStyle={styles.container}>
+                <Text style={styles.title}>Registrar Nuevo Gasto</Text>
 
             <Text style={styles.label}>Seleccionar Taxi:</Text>
             <View style={styles.pickerContainer}>
@@ -393,14 +432,18 @@ const CreateGastoScreen: React.FC<CreateGastoScreenProps> = ({ navigation }) => 
                 <Text style={styles.facturaUriText}>Factura seleccionada: {facturaData.name}</Text>
             )}
 
-            <Button
+            <CustomButton
                 title={loadingSubmit ? "Registrando..." : "Registrar Gasto"}
                 onPress={handleCreateGasto}
                 disabled={loadingSubmit}
-                color="#dc3545"
+                loading={loadingSubmit}
+                variant="danger"
+                icon="receipt"
+                fullWidth
             />
             <View style={{ height: 30 }} />
-        </ScrollView>
+            </ScrollView>
+        </LinearGradient>
     );
 };
 
@@ -411,7 +454,6 @@ const styles = StyleSheet.create({
     container: {
         flexGrow: 1,
         padding: 20,
-        backgroundColor: '#f8f8f8',
     },
     centered: {
         flex: 1,
